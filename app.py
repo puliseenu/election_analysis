@@ -18,6 +18,7 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, Input, Output, State, callback_context
 import dash_bootstrap_components as dbc
 from src.auth import AuthDB
+from src.analysis_dashboard import build_analysis
 
 # ── Database ──────────────────────────────────────────────────────────────────
 auth_db = AuthDB('auth.db')
@@ -41,6 +42,249 @@ except Exception as e:
 # ── xlsx fallback (corrupt cells in xlsx; use CSV for all analysis) ──────────
 df_xlsx = df.copy()
 print("[INFO] Deep analysis tabs powered by CSV data")
+
+# ── Derived / encoded variables ───────────────────────────────────────────────
+
+# 1. unique_id: State|Constituency_Name|Year
+if not df.empty:
+    df['unique_id'] = (
+        df['State'].astype(str) + '|' +
+        df['Constituency_Name'].astype(str) + '|' +
+        df['Year'].astype(str)
+    )
+
+# 2. Recode won: Position == 1 → 1, else 0 (99 for NaN Position)
+if not df.empty:
+    _pos = pd.to_numeric(df['Position'], errors='coerce')
+    df['won'] = _pos.apply(lambda x: 1 if x == 1 else (99 if pd.isna(x) else 0))
+
+# 3. Binary flag columns (0/1, NaN → 99)
+_binary_cols = ['Turncoat', 'Incumbent', 'Recontest', 'Same_Constituency', 'Same_Party']
+for _col in _binary_cols:
+    _new = _col + '_'
+    if _col in df.columns:
+        _s = pd.to_numeric(df[_col], errors='coerce')
+        df[_new] = _s.apply(lambda x: 99 if pd.isna(x) else int(x))
+    else:
+        df[_new] = 99
+
+# 4. Deposit_Lost_: yes → 1, no → 0, blank/NaN → 99
+if 'Deposit_Lost' in df.columns:
+    _dl_map = {'yes': 1, 'no': 0}
+    df['Deposit_Lost_'] = (
+        df['Deposit_Lost'].astype(str).str.strip().str.lower()
+        .map(_dl_map).fillna(99).astype(int)
+    )
+else:
+    df['Deposit_Lost_'] = 99
+
+# 5. Sex: standardise M/F/O, blank → 99
+if 'Sex' in df.columns:
+    _sex_map = {
+        'M': 'M', 'MALE': 'M', 'Male': 'M', 'male': 'M',
+        'F': 'F', 'FEMALE': 'F', 'Female': 'F', 'female': 'F',
+        'O': 'O', 'Other': 'O', 'other': 'O', 'OTHER': 'O',
+    }
+    df['Sex'] = df['Sex'].astype(str).str.strip().map(_sex_map).fillna(
+        df['Sex'].astype(str).str.strip().apply(
+            lambda x: 99 if x in ('', 'nan', 'NaN', 'None') else 'O'
+        )
+    )
+
+# 6. education_class: map Education string → numeric code
+_edu_map = {
+    'Illiterate': 0, 'Literate': 1,
+    '5th Pass': 5, '8th Pass': 8, '10th Pass': 10, '12th Pass': 12,
+    'Graduate': 15, 'Graduate Professional': 15,
+    'Post Graduate': 17, 'Doctorate': 22,
+    'Others': 99, 'Not Given': 99,
+}
+if 'Education' in df.columns:
+    df['education_class'] = (
+        df['Education'].astype(str).str.strip()
+        .map(_edu_map).fillna(99).astype(int)
+    )
+else:
+    df['education_class'] = 99
+
+# 7. TCPD_Prof_Main_: map profession string → numeric code
+_prof_map = {
+    'Agricultural Labour': 1, 'Agriculture': 2, 'Business': 3,
+    'Education': 4, 'Former Government': 5, 'Labourer or Daily Wage': 6,
+    'Liberal Profession or Professional': 7, 'Other': 8, 'Politics': 9,
+    'Religious Occupation': 10, 'Retired or Pension': 11,
+    'Salaried Work or Employed': 12, 'Small Business or Self-employed': 13,
+    'Social Work': 14, 'Student': 15, 'Traditional Occupation': 16,
+    'Unemployed': 17,
+}
+if 'TCPD_Prof_Main' in df.columns:
+    df['TCPD_Prof_Main_'] = (
+        df['TCPD_Prof_Main'].astype(str).str.strip()
+        .map(_prof_map).fillna(99).astype(int)
+    )
+else:
+    df['TCPD_Prof_Main_'] = 99
+
+# 8. Party_: map party name → numeric code (unmapped/blank → 99)
+_party_map = {
+    'INC': 1, 'BJP': 2, 'BSP': 3, 'CPI': 4, 'CPM': 5, 'NCP': 6,
+    'SP': 7, 'RJD': 8, 'JDU': 9, 'JD(U)': 9, 'JDS': 10, 'JD(S)': 10,
+    'DMK': 11, 'ADMK': 12, 'AIADMK': 12, 'PMK': 13, 'MDMK': 14,
+    'VCK': 15, 'NTK': 16, 'DMDK': 17, 'MNM': 18, 'AMMK': 19,
+    'TMC': 20, 'AITC': 20, 'TDP': 21, 'YSRCP': 22, 'YSR Congress Party': 22,
+    'TRS': 23, 'BRS': 23, 'AIMIM': 24, 'MIM': 24, 'Telugu Desam': 21,
+    'AAP': 25, 'SHS': 26, 'Shiv Sena': 26, 'MNS': 27,
+    'NCP(SP)': 28, 'SAD': 29, 'Shiromani Akali Dal': 29,
+    'AGP': 30, 'AIUDF': 31, 'BPF': 32,
+    'BJD': 33, 'Biju Janata Dal': 33,
+    'HJC': 34, 'INLD': 35, 'JJP': 36,
+    'LJP': 37, 'LJSP': 37, 'RLSP': 38,
+    'AIFB': 39, 'RSP': 40, 'Kerala Congress': 41, 'KEC': 41,
+    'IUML': 42, 'Indian Union Muslim League': 42,
+    'JKNC': 43, 'NC': 43, 'PDP': 44,
+    'NPF': 45, 'NPP': 46, 'NDPP': 47,
+    'MNF': 48, 'ZPM': 49,
+    'SDF': 50, 'SKM': 51,
+    'GNC': 52, 'GNLF': 53,
+    'NOTA': 98, 'IND': 0,
+}
+if 'Party' in df.columns:
+    df['Party_'] = (
+        df['Party'].astype(str).str.strip()
+        .map(_party_map).fillna(99).astype(int)
+    )
+else:
+    df['Party_'] = 99
+
+# 9. Candidate history variables (key: State + Candidate)
+# NOTA rows: times_contested=0, is_repeat_candidate=0
+if not df.empty:
+    _is_nota = df['Candidate'].astype(str).str.strip().str.upper() == 'NONE OF THE ABOVE'
+    df['candidate_key'] = (
+        df['State'].astype(str) + '|' +
+        df['Candidate'].astype(str).str.strip()
+    )
+    df['candidate_key'] = df['candidate_key'].where(~_is_nota, 'NOTA_ROW')
+
+    # Sort by Year for cumulative calculations
+    df = df.sort_values(['candidate_key', 'Year']).reset_index(drop=True)
+
+    # times_contested: cumulative count per candidate_key up to current year
+    df['times_contested'] = df.groupby('candidate_key').cumcount()
+    # NOTA rows → 0
+    df.loc[_is_nota, 'times_contested'] = 0
+
+    # is_repeat_candidate: 1 if times_contested > 0, else 0; NOTA → 0
+    df['is_repeat_candidate'] = (df['times_contested'] > 0).astype(int)
+    df.loc[_is_nota, 'is_repeat_candidate'] = 0
+
+    # prev_vote_share: Vote_Share_Percentage from immediately prior election
+    df['prev_vote_share'] = (
+        df.groupby('candidate_key')['Vote_Share_Percentage']
+        .shift(1)
+    )
+    df.loc[_is_nota, 'prev_vote_share'] = 99
+
+    # prev_position: Position from immediately prior election
+    _pos_num = pd.to_numeric(df['Position'], errors='coerce')
+    df['_pos_num'] = _pos_num
+    df['prev_position'] = df.groupby('candidate_key')['_pos_num'].shift(1)
+    df.drop(columns=['_pos_num'], inplace=True)
+    df.loc[_is_nota, 'prev_position'] = 99
+
+    # prev_won_count: cumulative wins in prior elections
+    df['_won_num'] = pd.to_numeric(
+        df['won'].replace(99, 0), errors='coerce').fillna(0)
+    df['prev_won_count'] = (
+        df.groupby('candidate_key')['_won_num']
+        .transform(lambda x: x.shift(1).fillna(0.0).cumsum())
+    )
+    df.drop(columns=['_won_num'], inplace=True)
+    df.loc[_is_nota, 'prev_won_count'] = 0
+
+    # years_since_last_contest
+    df['_yr'] = pd.to_numeric(df['Year'], errors='coerce')
+    df['prev_year'] = df.groupby('candidate_key')['_yr'].shift(1)
+    df['years_since_last_contest'] = df['_yr'] - df['prev_year']
+    df.drop(columns=['_yr', 'prev_year'], inplace=True)
+    df.loc[_is_nota, 'years_since_last_contest'] = 99
+
+    # Fill NaN in history cols (first-timers) with 99
+    for _hcol in ['prev_vote_share', 'prev_position',
+                  'prev_won_count', 'years_since_last_contest']:
+        df[_hcol] = df[_hcol].fillna(99)
+
+    print("[INFO] Candidate history variables created: candidate_key, "
+          "times_contested, is_repeat_candidate, prev_vote_share, "
+          "prev_position, prev_won_count, years_since_last_contest")
+
+# ── Label maps for chart display (numeric code → text) ───────────────────────
+LABEL_MAPS = {
+    'won': {1: 'Won', 0: 'Lost', 99: 'N/A'},
+    'Turncoat_': {0: 'Not Turncoat', 1: 'Turncoat', 99: 'N/A'},
+    'Incumbent_': {0: 'Not Incumbent', 1: 'Incumbent', 99: 'N/A'},
+    'Recontest_': {0: 'Fresh', 1: 'Recontested', 99: 'N/A'},
+    'Same_Constituency_': {0: 'New Constituency', 1: 'Same Constituency', 99: 'N/A'},
+    'Same_Party_': {0: 'Changed Party', 1: 'Same Party', 99: 'N/A'},
+    'Deposit_Lost_': {0: 'Deposit Saved', 1: 'Deposit Lost', 99: 'N/A'},
+    'is_repeat_candidate': {0: 'First Time', 1: 'Repeat Candidate'},
+    'Sex': {'M': 'Male', 'F': 'Female', 'O': 'Other', 99: 'N/A'},
+    'education_class': {
+        0: 'Illiterate', 1: 'Literate', 5: '5th Pass', 8: '8th Pass',
+        10: '10th Pass', 12: '12th Pass', 15: 'Graduate',
+        17: 'Post Graduate', 22: 'Doctorate', 99: 'Not Given/Others',
+    },
+    'TCPD_Prof_Main_': {
+        1: 'Agricultural Labour', 2: 'Agriculture', 3: 'Business',
+        4: 'Education', 5: 'Former Government', 6: 'Labourer/Daily Wage',
+        7: 'Liberal/Professional', 8: 'Other', 9: 'Politics',
+        10: 'Religious Occupation', 11: 'Retired/Pension',
+        12: 'Salaried/Employed', 13: 'Small Business/Self-employed',
+        14: 'Social Work', 15: 'Student', 16: 'Traditional Occupation',
+        17: 'Unemployed', 99: 'Not Given',
+    },
+    'Party_': {
+        0: 'IND', 1: 'INC', 2: 'BJP', 3: 'BSP', 4: 'CPI', 5: 'CPM',
+        6: 'NCP', 7: 'SP', 8: 'RJD', 9: 'JDU/JD(U)', 10: 'JDS/JD(S)',
+        11: 'DMK', 12: 'AIADMK', 13: 'PMK', 14: 'MDMK', 15: 'VCK',
+        16: 'NTK', 17: 'DMDK', 18: 'MNM', 19: 'AMMK',
+        20: 'TMC/AITC', 21: 'TDP', 22: 'YSRCP', 23: 'TRS/BRS',
+        24: 'AIMIM', 25: 'AAP', 26: 'Shiv Sena', 27: 'MNS',
+        28: 'NCP(SP)', 29: 'SAD', 30: 'AGP', 31: 'AIUDF', 32: 'BPF',
+        33: 'BJD', 34: 'HJC', 35: 'INLD', 36: 'JJP',
+        37: 'LJP/LJSP', 38: 'RLSP', 39: 'AIFB', 40: 'RSP',
+        41: 'Kerala Congress', 42: 'IUML', 43: 'JKNC/NC', 44: 'PDP',
+        45: 'NPF', 46: 'NPP', 47: 'NDPP', 48: 'MNF', 49: 'ZPM',
+        50: 'SDF', 51: 'SKM', 52: 'GNC', 53: 'GNLF',
+        98: 'NOTA', 99: 'Other/Unknown',
+    },
+}
+
+# ── Save updated analysis dataset ─────────────────────────────────────────────
+if not df.empty:
+    _analysis_cols = [
+        'unique_id', 'Sex', 'education_class', 'TCPD_Prof_Main_',
+        'Party_', 'Turncoat_', 'Incumbent_', 'Recontest_',
+        'Same_Constituency_', 'Same_Party_', 'Deposit_Lost_',
+        'Total Assets', 'Liabilities', 'Criminal Case', 'No_Terms',
+        'ENOP', 'Margin_Percentage', 'Vote_Share_Percentage',
+        'Turnout_Percentage', 'N_Cand', 'Age', 'Candidate', 'Position',
+        'State', 'Assembly_No', 'Constituency_No', 'Year', 'won',
+        # candidate history cols (29-35)
+        'candidate_key', 'times_contested', 'is_repeat_candidate',
+        'prev_vote_share', 'prev_position', 'prev_won_count',
+        'years_since_last_contest',
+    ]
+    _existing = [c for c in _analysis_cols if c in df.columns]
+    df[_existing].to_csv(
+        r'raw data/election_analysis_dataset.csv', index=False
+    )
+    print(f"[INFO] election_analysis_dataset.csv updated → "
+          f"{len(_existing)} columns, {len(df)} rows")
+
+print("[INFO] Derived variables created: unique_id, won (recoded), Turncoat_, Incumbent_, "
+      "Recontest_, Same_Constituency_, Same_Party_, Deposit_Lost_, Sex (standardised), "
+      "education_class, TCPD_Prof_Main_, Party_")
 
 ALL_STATES = sorted(df['State'].dropna().unique().tolist())
 ALL_YEARS  = sorted(df['Year'].dropna().unique().astype(int).tolist())
@@ -153,6 +397,7 @@ TABS = [
     ('tab-predictors','🎯 Win Predictors'),
     ('tab-evolution', '📍 Constituency Trends'),
     ('tab-insights',  '🔬 Deep Insights'),
+    ('tab-analysis',  '🧠 ML Analysis'),
     ('tab-admin',     '🛡️ Admin Panel'),
 ]
 
@@ -1607,6 +1852,7 @@ def update_content(*args):
         'tab-predictors': build_win_predictors,
         'tab-evolution':  build_constituency_evolution,
         'tab-insights':   build_deep_insights,
+        'tab-analysis':   build_analysis,
     }
     return BUILDERS.get(active, build_overview)(d), active
 

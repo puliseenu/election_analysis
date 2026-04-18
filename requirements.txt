@@ -4,3 +4,9 @@ dash
 dash-bootstrap-components
 gunicorn
 openpyxl
+scikit-learn
+xgboost
+lightgbm
+shap
+scipy
+imbalanced-learn
