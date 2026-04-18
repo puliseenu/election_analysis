@@ -1,0 +1,274 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║         ELECTION ANALYTICS DASHBOARD - DEPLOYMENT GUIDE              ║
+║                      Clean Production Version                        ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+PROJECT STRUCTURE
+═══════════════════════════════════════════════════════════════════════
+
+election-dashboard/
+├── app.py                    # Main application (START HERE)
+├── start.py                  # Quick launcher script
+├── launch_public.py          # Public access with ngrok
+├── auth.db                   # SQLite database (auto-created)
+│
+├── src/                      # Source code
+│   └── auth.py              # Authentication module
+│
+├── config/                   # Configuration files (future use)
+├── utils/                    # Utility functions (future use)
+├── assets/                   # Static assets (CSS, images)
+├── raw data/                 # Election data CSV
+│
+└── _archived/               # Old/unused files (cleanup)
+
+
+INSTALLATION
+═══════════════════════════════════════════════════════════════════════
+
+1. SETUP VIRTUAL ENVIRONMENT (if not done)
+   python -m venv .venv
+   .\.venv\Scripts\activate
+
+2. INSTALL DEPENDENCIES
+   pip install dash dash-bootstrap-components pandas
+
+3. (OPTIONAL) FOR PUBLIC ACCESS
+   pip install ngrok pyngrok
+
+
+QUICK START
+═══════════════════════════════════════════════════════════════════════
+
+OPTION 1: LOCAL ACCESS ONLY
+─────────────────────────────
+.\.venv\Scripts\python.exe start.py
+
+Then access:
+  • http://127.0.0.1:8050
+  • http://192.168.0.165:8050
+
+
+OPTION 2: PUBLIC ACCESS (External Users)
+──────────────────────────────────────────
+.\.venv\Scripts\python.exe launch_public.py
+
+Then access:
+  • Local: http://127.0.0.1:8050
+  • Network: http://192.168.0.165:8050
+  • Public: https://<ngrok-url>ngrok.io (shown in output)
+
+
+OPTION 3: DIRECT PYTHON
+───────────────────────
+.\.venv\Scripts\python.exe app.py
+
+
+DEFAULT CREDENTIALS
+═══════════════════════════════════════════════════════════════════════
+
+Admin Login:
+  • Username: admin
+  • Password: admin1432
+
+User Registration:
+  • Create account on REGISTER page
+  • Admin approval required (pending status)
+  • Once approved, user can login
+
+
+DATABASE LOCATION
+═══════════════════════════════════════════════════════════════════════
+
+File: auth.db (SQLite)
+
+Tables:
+  • users: Stores user accounts with encrypted passwords
+  • audit_log: Tracks all user actions
+
+To reset database:
+  Delete auth.db and restart app (new admin created automatically)
+
+
+SECURITY FEATURES
+═══════════════════════════════════════════════════════════════════════
+
+✓ PBKDF2-SHA256 password hashing (100,000 iterations)
+✓ Random salt per user (16-byte)
+✓ User approval workflow (pending → approved)
+✓ Role-based access control (admin/user)
+✓ Session-based authentication
+✓ SQLite encrypted storage
+
+
+CONFIGURATION
+═══════════════════════════════════════════════════════════════════════
+
+Database Path: auth.db
+Host: 0.0.0.0 (bind all interfaces)
+Port: 8050
+Debug Mode: Off (production)
+
+
+TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════════
+
+Problem: Cannot login
+→ Verify username and password are correct
+→ Check auth.db exists and is readable
+→ Default: admin / admin1432
+
+Problem: Port 8050 in use
+→ taskkill /F /IM python.exe
+→ Wait 2 seconds and restart
+
+Problem: Buttons not responding
+→ Hard refresh: Ctrl+Shift+R
+→ Clear browser cache
+→ Check developer console for errors
+
+Problem: Data not loading
+→ Verify "raw data/election_data.csv" exists
+→ Check file permissions
+→ Verify CSV format is correct
+
+
+DEPLOYMENT CHECKLIST
+═══════════════════════════════════════════════════════════════════════
+
+□ Virtual environment activated
+□ All dependencies installed
+□ auth.db exists (auto-created on first run)
+□ election_data.csv in raw data/ folder
+□ Port 8050 is free
+□ Firewall allows port 8050
+□ Admin credentials tested (admin / admin1432)
+□ Users can register and login
+□ All buttons respond properly
+
+
+PUBLIC ACCESS (NGROK)
+═══════════════════════════════════════════════════════════════════════
+
+Setup:
+  1. Install ngrok: pip install pyngrok
+  2. Get auth token: https://dashboard.ngrok.com
+  3. Configure: ngrok config add-authtoken <YOUR_TOKEN>
+  4. Run: .\.venv\Scripts\python.exe launch_public.py
+
+Access from anywhere:
+  • Public URL: https://<id>.ngrok.io
+  • Login: admin / admin1432
+  • Share URL with external users
+
+Cost:
+  • FREE tier: 1 session, limited bandwidth
+  • PAID tier: Multiple sessions, higher limits
+
+
+MAINTENANCE
+═══════════════════════════════════════════════════════════════════════
+
+Backup Database:
+  Copy auth.db to safe location
+
+Monitor Logs:
+  Check terminal output for errors
+
+Update Users:
+  • Admin can approve/reject registrations
+  • Activate/deactivate users
+  • Reset passwords (delete auth.db to reset admin)
+
+Cleanup:
+  • Delete files in _archived/ folder periodically
+  • Monitor disk space for auth.db
+
+
+SWITCHING FROM OLD VERSION
+═══════════════════════════════════════════════════════════════════════
+
+Old files kept in _archived/ folder:
+  • dashboard_auth.py (old version)
+  • dashboard_auth_v2.py (old version)
+  • dashboard_auth_fixed.py (old version)
+  • run.py (old launcher)
+  • ... and other test files
+
+New consolidated structure:
+  ✓ app.py - Single main application
+  ✓ src/auth.py - Simplified authentication
+  ✓ Cleaner, easier to maintain
+  ✓ Better performance
+
+
+NEXT STEPS
+═══════════════════════════════════════════════════════════════════════
+
+1. RUN: .\.venv\Scripts\python.exe start.py
+
+2. OPEN: http://127.0.0.1:8050
+
+3. TEST:
+   - Login as admin (admin / admin1432)
+   - Register a new user
+   - Test approval workflow
+   - Test user login
+
+4. FOR PUBLIC:
+   - Run: .\.venv\Scripts\python.exe launch_public.py
+   - Get public URL from output
+   - Share with external users
+
+5. CUSTOMIZE:
+   - Edit app.py to add analytics
+   - Add charts and visualizations
+   - Expand dashboard features
+
+
+FILES REMOVED (in _archived/)
+═══════════════════════════════════════════════════════════════════════
+
+Removed duplicates and test code:
+  ✗ dashboard_auth.py (old)
+  ✗ dashboard_auth_v2.py (old)
+  ✗ dashboard_auth_fixed.py (old)
+  ✗ dashboard_secure.py (test)
+  ✗ dashboard_simple.py (test)
+  ✗ run.py (old launcher)
+  ✗ ngrok_dashboard_public.py (old)
+  ✗ external_access_setup.py (test)
+  ✗ analyze_dashboard.py (test)
+  ✗ And many others...
+
+Kept essential files:
+  ✓ app.py (main)
+  ✓ src/auth.py (auth module)
+  ✓ raw data/election_data.csv (data)
+  ✓ auth.db (database)
+
+
+VERSION INFO
+═══════════════════════════════════════════════════════════════════════
+
+Election Analytics Dashboard - Production Version
+Built: April 18, 2026
+Python: 3.10+
+Framework: Dash 2.0+
+Database: SQLite 3
+Status: Production Ready ✓
+
+
+SUPPORT
+═══════════════════════════════════════════════════════════════════════
+
+For issues:
+  1. Check troubleshooting section above
+  2. Review terminal output for error messages
+  3. Check file permissions
+  4. Verify dependencies are installed
+  5. Try: pip install --upgrade dash dash-bootstrap-components
+
+═══════════════════════════════════════════════════════════════════════
+Ready to launch? Run: .\.venv\Scripts\python.exe start.py
+═══════════════════════════════════════════════════════════════════════

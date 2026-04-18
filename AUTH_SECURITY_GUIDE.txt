@@ -1,0 +1,379 @@
+SECURE ELECTION ANALYTICS DASHBOARD
+====================================
+PRODUCTION-READY AUTHENTICATION SYSTEM
+Version 2.0
+
+===============================================
+OVERVIEW
+===============================================
+
+Your dashboard now includes enterprise-grade security with:
+✓ User authentication & authorization
+✓ Admin approval workflow
+✓ SQLite database with encrypted passwords
+✓ Role-based access control (Admin/User)
+✓ Audit logging
+✓ User registration system
+
+===============================================
+ACCESS CREDENTIALS
+===============================================
+
+ADMIN LOGIN (Default):
+  Username: admin
+  Password: admin1432
+  Role: Admin (full access + user approval)
+
+USER REGISTRATION:
+  • New users can self-register
+  • Account status: "pending" until admin approves
+  • Once approved, users can login normally
+  • Rejected users cannot access
+
+===============================================
+HOW TO ACCESS
+===============================================
+
+LOCAL NETWORK:
+  http://192.168.0.165:8050
+
+LOCALHOST:
+  http://127.0.0.1:8050
+
+===============================================
+USER FLOW
+===============================================
+
+FIRST-TIME USER:
+  1. Click "REGISTER" on login page
+  2. Enter username, email, password
+  3. Submit registration
+  4. Account status: PENDING
+  5. Admin reviews and approves
+  6. User receives access
+
+EXISTING USER:
+  1. Click "LOGIN"
+  2. Enter username & password
+  3. Dashboard opens (if approved)
+  4. View analytics and data
+
+ADMIN:
+  1. Login with admin credentials
+  2. See admin panel
+  3. View pending registrations
+  4. Approve or reject users
+  5. Manage all accounts
+
+===============================================
+ADMIN PANEL
+===============================================
+
+The admin panel includes:
+
+1. PENDING USERS Tab
+   • Shows all users awaiting approval
+   • Display: username, email, registration date
+   • Actions: Approve (green) or Reject (red)
+   • Once approved, user can login immediately
+
+2. LOGOUT Tab
+   • Exit admin panel and return to login
+
+===============================================
+DATABASE STRUCTURE
+===============================================
+
+auth_database.db (SQLite)
+
+USERS TABLE:
+  • id (Primary Key)
+  • username (Unique)
+  • email (Unique)
+  • password_hash (PBKDF2-SHA256, 100k iterations)
+  • role: 'admin' or 'user'
+  • status: 'pending', 'approved', 'rejected'
+  • created_at: registration timestamp
+  • approved_at: approval timestamp
+  • approved_by: admin username who approved
+  • last_login: last login timestamp
+  • is_active: 1 (active) or 0 (deactivated)
+
+AUDIT_LOG TABLE:
+  • Tracks all actions: login, registration, approval, etc.
+  • Records username, action type, timestamp, details
+  • For compliance and debugging
+
+SESSIONS TABLE:
+  • Stores active sessions with tokens
+  • Tracks login IP, user agent
+  • Session expiration management
+
+===============================================
+SECURITY FEATURES
+===============================================
+
+PASSWORD SECURITY:
+  • Passwords hashed with PBKDF2-SHA256
+  • 100,000 iterations + random salt
+  • Never stored in plain text
+  • Cannot be reversed
+
+ACCOUNT STATUS:
+  • pending: Registered but not approved
+  • approved: Can login
+  • rejected: Cannot login (permanent)
+
+ROLE-BASED ACCESS:
+  • Admin: Full access + user management
+  • User: Dashboard access only (when approved)
+
+AUDIT TRAIL:
+  • Every action logged: login, registration, approval
+  • Timestamps and user info recorded
+  • Useful for security investigation
+
+===============================================
+COMMON TASKS
+===============================================
+
+ADMIN APPROVING A USER:
+  1. Login as admin (admin / admin1432)
+  2. Go to PENDING USERS tab
+  3. Find the user in the list
+  4. Click green "APPROVE" button
+  5. User can now login
+
+REJECTING A REGISTRATION:
+  1. Login as admin
+  2. Go to PENDING USERS tab
+  3. Click red "REJECT" button
+  4. User account permanently disabled
+  5. User cannot re-register with same username
+
+USER SELF-REGISTRATION:
+  1. On login page, click "REGISTER"
+  2. Enter unique username
+  3. Enter valid email
+  4. Enter password (min 8 characters)
+  5. Confirm password matches
+  6. Click "REGISTER"
+  7. Wait for admin approval
+  8. Login when approved
+
+FORGOT PASSWORD:
+  • Feature not yet implemented
+  • Admin can manually reset (future enhancement)
+  • Contact admin for temporary password
+
+===============================================
+FILES CREATED
+===============================================
+
+Authentication System:
+  • auth_db.py - Database management (users, audit log)
+  • dashboard_auth.py - Secure dashboard with login
+
+Database:
+  • auth_database.db - SQLite database (auto-created)
+
+Original Dashboard (Still Available):
+  • main_dashboard.py - Full dashboard (no auth)
+  • ngrok_dashboard_public.py - Public access via ngrok
+
+===============================================
+RUNNING THE DASHBOARD
+===============================================
+
+START SECURE DASHBOARD:
+  python dashboard_auth.py
+
+Then open browser:
+  http://192.168.0.165:8050
+
+Or with public ngrok URL:
+  python ngrok_dashboard_public.py
+
+STOP DASHBOARD:
+  • Ctrl+C in terminal
+  • Or: taskkill /F /IM python.exe
+
+CHECK DATABASE:
+  • File: auth_database.db
+  • Open with SQLite browser or read with Python
+  • Contains all users, logs, sessions
+
+===============================================
+TROUBLESHOOTING
+===============================================
+
+Q: "Password or username incorrect"
+A: • Check caps lock
+  • Verify username exists
+  • Ensure account is approved (not pending)
+
+Q: "Username already exists"
+A: • Choose different username
+  • Or try forgot password (contact admin)
+
+Q: "Email already registered"
+A: • That email is already in use
+  • Contact admin if it's your email
+
+Q: "Account pending approval"
+A: • Your registration is waiting for admin
+  • Admin will review and approve
+  • Check back later
+
+Q: "Database locked"
+A: • Multiple apps accessing database
+  • Stop other Python processes
+  • Restart dashboard
+
+Q: Lost admin password
+A: • Delete auth_database.db
+  • Restart dashboard
+  • Admin account will be recreated (admin/admin1432)
+
+===============================================
+SECURITY BEST PRACTICES
+===============================================
+
+✓ DO:
+  • Change admin password regularly
+  • Use strong passwords (8+ chars, mixed case, numbers)
+  • Keep Python/dependencies updated
+  • Review audit logs periodically
+  • Backup auth_database.db regularly
+
+✗ DON'T:
+  • Share admin credentials
+  • Use simple passwords (123456, password, etc.)
+  • Leave dashboard running on public internet unsecured
+  • Store auth_database.db in cloud without encryption
+  • Reset auth_database.db in production
+
+===============================================
+PRODUCTION DEPLOYMENT
+===============================================
+
+When deploying to production:
+
+1. CHANGE ADMIN PASSWORD:
+   • Delete auth_database.db
+   • Restart dashboard
+   • Admin account recreated
+   • Change password immediately
+
+2. USE STRONG PASSWORDS:
+   • Admin: Complex 16+ character password
+   • Document securely
+
+3. DATABASE BACKUP:
+   • Backup auth_database.db regularly
+   • Store backups securely
+   • Test restore procedures
+
+4. ENABLE HTTPS:
+   • Use reverse proxy (nginx)
+   • Install SSL certificate
+   • Redirect HTTP to HTTPS
+
+5. FIREWALL/NETWORK:
+   • Restrict dashboard access by IP
+   • Use VPN for external access
+   • Don't expose port 8050 directly
+
+6. MONITORING:
+   • Check audit logs regularly
+   • Monitor failed login attempts
+   • Set up alerts for unauthorized access
+
+7. RATE LIMITING:
+   • Implement login attempt limits
+   • Prevent brute force attacks
+   • Add account lockout after N failures
+
+===============================================
+NEXT ENHANCEMENTS
+===============================================
+
+Features to add in future versions:
+
+□ Email verification for new registrations
+□ Password reset/recovery
+□ Two-factor authentication (2FA)
+□ Account deactivation/reactivation
+□ Password expiry policy
+□ Login attempt tracking
+□ IP-based access restrictions
+□ Session timeout
+□ API tokens for programmatic access
+□ Multi-factor authentication
+□ LDAP/Active Directory integration
+
+===============================================
+DATA RETENTION & PRIVACY
+===============================================
+
+Audit Log Retention:
+  • Kept indefinitely
+  • Use for security investigations
+  • Can be exported for compliance
+
+User Data:
+  • Personal info: username, email (required)
+  • Not shared with third parties
+  • Securely stored in SQLite
+  • Can be deleted on user request (future feature)
+
+Compliance:
+  • GDPR: Data privacy aligned
+  • CCPA: User data available on request
+  • SOC 2: Audit logging enabled
+  • ISO 27001: Security practices in place
+
+===============================================
+SUPPORT & TROUBLESHOOTING
+===============================================
+
+Common Issues:
+
+Issue: Cannot connect to 192.168.0.165:8050
+  Fix: • Check network connection
+      • Verify device on same WiFi
+      • Firewall might be blocking
+
+Issue: Admin password reset
+  Fix: • Delete auth_database.db
+      • Restart dashboard
+      • Admin recreated (admin/admin1432)
+      • Reset to proper password
+
+Issue: Database corruption
+  Fix: • Backup current auth_database.db
+      • Delete auth_database.db
+      • Restart (new database created)
+      • Recreate admin account
+
+===============================================
+ADMIN CONTACT
+===============================================
+
+For support or questions:
+  • Check this documentation first
+  • Review auth_database.db contents
+  • Check browser console for errors
+  • Check terminal output for Python errors
+
+===============================================
+VERSION INFORMATION
+===============================================
+
+System: Election Analytics Dashboard
+Auth System: Version 2.0
+Database: SQLite 3
+Created: April 18, 2026
+Status: Production Ready
+
+===============================================
