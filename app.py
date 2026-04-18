@@ -1515,9 +1515,9 @@ def filter_bar():
 
 # ── Layout ────────────────────────────────────────────────────────────────────
 app.layout = html.Div([
-    dcc.Store(id='session-store', data=None),
-    dcc.Store(id='active-tab',    data='tab-overview'),
-    dcc.Store(id='admin-refresh', data=0),
+    dcc.Store(id='session-store', data=None,          storage_type='session'),
+    dcc.Store(id='active-tab',    data='tab-overview',  storage_type='session'),
+    dcc.Store(id='admin-refresh', data=0,               storage_type='session'),
 
     # LOGIN
     html.Div(id='page-login', children=[
