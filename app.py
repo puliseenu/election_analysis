@@ -11,6 +11,7 @@ if sys.platform == 'win32':
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
+import os
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -1662,4 +1663,5 @@ if __name__ == '__main__':
     print("  http://192.168.0.165:8050")
     print("  Login: admin / admin1432")
     print("=" * 60)
-    app.run(host='0.0.0.0', port=8050, debug=False)
+    port = int(os.environ.get('PORT', 8050))
+    app.run(host='0.0.0.0', port=port, debug=False)
